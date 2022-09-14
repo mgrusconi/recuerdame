@@ -1,0 +1,128 @@
+service: recuerdame-serverless
+
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  region: us-west-2
+  environment:
+    MEMORY_TABLE: memorySam
+  httpApi:
+    cors: true
+    authorizers:
+      customAuthorizer:
+        type: request
+        functionName: authorizerFunc
+
+functions:    
+  authorizerFunc:
+    handler: src/api/recuerdmeAuth.lambdaHandler
+  createMemory:
+    handler: src/api/createMemory.lambdaHandler
+    events:
+      - httpApi:
+          authorizer:
+            name: customAuthorizer
+          path: /memory
+          method: post
+    iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.MEMORY_TABLE}
+  findMemories:
+    handler: src/api/findMemories.lambdaHandler
+    events:
+      - httpApi:
+          authorizer:
+            name: customAuthorizer
+          path: /memories
+          method: get
+    iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.MEMORY_TABLE}/index/*
+  findMemory:
+    handler: src/api/findMemory.lambdaHandler
+    events:
+      - httpApi:
+          authorizer:
+            name: customAuthorizer
+          path: /memory/{id}
+          method: get
+    iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.MEMORY_TABLE}
+  updateMemory:
+    handler: src/api/updateMemory.lambdaHandler
+    events:
+      - httpApi:
+          authorizer:
+            name: customAuthorizer
+          path: /memory/{id}
+          method: put
+    iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:UpdateItem
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.MEMORY_TABLE}
+  deleteMemory:
+    handler: src/api/deleteMemory.lambdaHandler
+    events:
+      - httpApi:
+          authorizer:
+            name: customAuthorizer
+          path: /memory/{id}
+          method: delete
+    iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DeleteItem
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.MEMORY_TABLE}
+
+resources:
+  Resources:
+      MemorySamTable:
+        Type: AWS::DynamoDB::Table
+        Properties:
+          KeySchema:
+            - AttributeName: id
+              KeyType: HASH
+          AttributeDefinitions:
+            - AttributeName: id
+              AttributeType: S
+            - AttributeName: publication_date
+              AttributeType: "N"
+            - AttributeName: status
+              AttributeType: S
+            - AttributeName: remembered
+              AttributeType: S
+          BillingMode: PAY_PER_REQUEST
+          GlobalSecondaryIndexes:
+            - IndexName: status-global-index
+              KeySchema:
+                - AttributeName: status
+                  KeyType: HASH
+                - AttributeName: publication_date
+                  KeyType: RANGE
+              Projection:
+                ProjectionType: ALL
+            - IndexName: remembered-global-index
+              KeySchema:
+                - AttributeName: remembered
+                  KeyType: HASH
+                - AttributeName: publication_date
+                  KeyType: RANGE
+              Projection:
+                ProjectionType: ALL
+          PointInTimeRecoverySpecification:
+            PointInTimeRecoveryEnabled: true
+          TableName: memorySam
+
+plugins:
+  - serverless-esbuild
+  - serverless-iam-roles-per-function
