@@ -1,6 +1,30 @@
+
+
+# IDE
+.vscode
+
+# Logs
+*.log
+npm-debug.log*
+
 # package directories
 node_modules
 jspm_packages
 
+# coverage
+coverage
+
+# Optional npm cache directory
+.npm
+
+# Files
+*.js
+!jest.config.js
+*.d.ts
+function.zip
+
 # Serverless directories
 .serverless
+
+# Enviroment Variables
+.env
